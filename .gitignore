@@ -1,0 +1,9 @@
+dist/
+installer/output/
+native-host/build/
+native-host/dist/
+native-host/**/*.spec
+native-host/**/__pycache__/
+*.pyc
+.pytest_cache/
+.codex/

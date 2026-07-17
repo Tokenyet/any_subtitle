@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Any Subtitle</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">本機字幕工具</p>
+          <h1>Any Subtitle</h1>
+        </div>
+        <span id="host-state" class="badge">檢查中</span>
+      </header>
+
+      <section class="card">
+        <h2>目前分頁</h2>
+        <p id="page-title" class="page-title">尚未讀取</p>
+        <p id="page-url" class="muted"></p>
+      </section>
+
+      <section id="setup-card" class="card setup-card" hidden>
+        <div>
+          <h2>需要安裝本機核心</h2>
+          <p id="setup-message" class="muted">Any Subtitle 需要本機核心才能在電腦上執行字幕辨識。</p>
+        </div>
+        <button id="open-setup" class="primary">開啟安裝引導</button>
+      </section>
+
+      <section class="card controls">
+        <button id="start-live" class="primary">開始即時字幕</button>
+        <button id="start-accurate">產生精準字幕</button>
+        <button id="stop" class="danger" disabled>停止目前工作</button>
+      </section>
+
+      <section id="capture-card" class="card" hidden>
+        <h2>完整播放錄音</h2>
+        <p class="muted">此網站無法直接取得音訊。播放影片時錄下分頁聲音，播放完成後再產生精準字幕。</p>
+        <button id="start-capture">開始錄音</button>
+        <button id="finish-capture" class="primary" hidden>完成錄音並轉錄</button>
+      </section>
+
+      <section id="cookie-card" class="card" hidden>
+        <h2>需要登入內容</h2>
+        <p class="muted">只有重試這次工作時才會讀取目前網站的 cookies。</p>
+        <button id="retry-cookies">允許目前網站並重試</button>
+      </section>
+
+      <section class="card">
+        <div class="section-row">
+          <h2>狀態</h2>
+          <span id="progress-value">—</span>
+        </div>
+        <progress id="progress" max="100" value="0"></progress>
+        <pre id="status">準備就緒</pre>
+      </section>
+
+      <section class="card settings">
+        <h2>字幕顯示</h2>
+        <label>
+          語言
+          <select id="language">
+            <option value="auto">自動偵測</option>
+            <option value="zh">中文</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+          </select>
+        </label>
+        <label class="check">
+          <input id="traditional" type="checkbox" checked>
+          中文轉成台灣繁體
+        </label>
+      </section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

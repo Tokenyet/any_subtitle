@@ -1,0 +1,11 @@
+{
+  "name": "any-subtitle",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/js/*.test.mjs && python scripts/run-python-tests.py",
+    "smoke": "node scripts/smoke-test.mjs",
+    "smoke:browser": "node scripts/browser-smoke.mjs"
+  }
+}

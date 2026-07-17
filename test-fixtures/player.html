@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Any Subtitle Browser Fixture</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #111722;
+        color: white;
+        font-family: sans-serif;
+      }
+      #player {
+        width: min(820px, 90vw);
+        min-height: 320px;
+        display: grid;
+        place-items: center;
+        border-radius: 20px;
+        background: #202b3d;
+      }
+      video {
+        width: 80%;
+        min-height: 240px;
+        background: #0c1119;
+      }
+    </style>
+  </head>
+  <body>
+    <section id="player">
+      <video id="media" controls preload="auto">
+        <source src="/youtube_local_exporter/tmp-test-output/2026-07-02%20-%20Me%20at%20the%20zoo%20%5BjNQXAC9IVRw%5D.m4a" type="audio/mp4">
+        <track default kind="subtitles" srclang="en" label="English" src="/any_subtitle/test-fixtures/sample.vtt">
+        <track kind="subtitles" srclang="zh-TW" label="台灣繁體" src="/any_subtitle/test-fixtures/sample-zh-tw.vtt">
+      </video>
+    </section>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+[project]
+name = "any-subtitle-native-host"
+version = "0.3.0"
+description = "Local native messaging host for Any Subtitle"
+requires-python = ">=3.11"
+dependencies = [
+  "opencc-python-reimplemented>=0.1.7"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["native-host/tests"]

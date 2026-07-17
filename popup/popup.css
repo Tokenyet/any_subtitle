@@ -1,0 +1,174 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+  background: #0c1018;
+  color: #edf2fa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  width: 380px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+main {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+header,
+.section-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 24px;
+}
+
+h2 {
+  font-size: 15px;
+}
+
+.eyebrow {
+  color: #7f91aa;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #273246;
+  border-radius: 14px;
+  background: #141b27;
+}
+
+.controls {
+  grid-template-columns: 1fr;
+}
+
+button,
+select {
+  min-height: 40px;
+  border: 1px solid #36445c;
+  border-radius: 10px;
+  background: #1b2636;
+  color: inherit;
+  font: inherit;
+}
+
+button {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button:hover:not(:disabled) {
+  border-color: #6d88b3;
+  background: #24334a;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: .45;
+}
+
+button.primary {
+  border-color: #4f78d7;
+  background: #315bbd;
+}
+
+button.danger {
+  border-color: #744454;
+  background: #422530;
+}
+
+.badge {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #293348;
+  color: #cbd6e7;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge.ready {
+  background: #183c31;
+  color: #9ce5c3;
+}
+
+.badge.error {
+  background: #48252c;
+  color: #ffb6c1;
+}
+
+.badge.warning {
+  background: #4a3a18;
+  color: #ffe0a0;
+}
+
+.setup-card {
+  border-color: #6a5526;
+  background: #201b12;
+}
+
+.page-title {
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.muted {
+  color: #98a7ba;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+progress {
+  width: 100%;
+  height: 8px;
+  accent-color: #6e91ea;
+}
+
+pre {
+  min-height: 46px;
+  margin: 0;
+  color: #c7d1df;
+  font: 12px/1.5 "Cascadia Mono", Consolas, monospace;
+  white-space: pre-wrap;
+}
+
+.settings label {
+  display: grid;
+  gap: 6px;
+  color: #bdc8d8;
+  font-size: 13px;
+}
+
+.settings .check {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.settings input {
+  width: 16px;
+  height: 16px;
+}

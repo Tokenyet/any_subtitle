@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>設定 Any Subtitle</title>
+    <link rel="stylesheet" href="onboarding.css">
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <img src="../icons/icon128.png" width="88" height="88" alt="">
+        <div>
+          <p class="eyebrow">只需設定一次</p>
+          <h1>安裝本機字幕核心</h1>
+          <p class="lede">Chrome 擴充功能負責擷取分頁音訊與顯示字幕；語音辨識由你電腦上的 NVIDIA GPU 完成。</p>
+        </div>
+      </header>
+
+      <section id="status-card" class="status-card checking" aria-live="polite">
+        <div class="status-dot" aria-hidden="true"></div>
+        <div>
+          <strong id="status-title">正在檢查本機核心…</strong>
+          <p id="status-detail">請稍候。</p>
+        </div>
+      </section>
+
+      <section class="steps">
+        <article>
+          <span class="step-number">1</span>
+          <div>
+            <h2>下載 Windows 安裝器</h2>
+            <p>安裝器很小，會從官方來源下載 FFmpeg、yt-dlp、CUDA Whisper 與字幕模型。</p>
+            <button id="download-core" class="primary">下載 Any Subtitle 本機核心</button>
+          </div>
+        </article>
+        <article>
+          <span class="step-number">2</span>
+          <div>
+            <h2>完成安裝與模型下載</h2>
+            <p>Windows 可能顯示安全確認。依賴下載約 2.5–3 GB，安裝後約占 4 GB；時間取決於網路速度。</p>
+          </div>
+        </article>
+        <article>
+          <span class="step-number">3</span>
+          <div>
+            <h2>回來重新檢查</h2>
+            <p>安裝完成後不必重新安裝擴充功能。</p>
+            <button id="recheck">我已安裝，重新檢查</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="requirements">
+        <h2>系統需求</h2>
+        <ul>
+          <li>Windows 10 或 Windows 11，Chrome／Edge／Vivaldi 116 以上</li>
+          <li>NVIDIA GTX／RTX 顯示卡與可用的 NVIDIA 驅動程式</li>
+          <li>至少 5 GB 可用磁碟空間</li>
+        </ul>
+      </section>
+
+      <section class="privacy">
+        <h2>哪些資料會離開電腦？</h2>
+        <p>字幕辨識、音訊暫存與字幕快取都留在本機。安裝期間只會向 GitHub、Hugging Face 與 FFmpeg 發行來源下載工具及模型；Any Subtitle 不提供雲端 ASR 或遙測。</p>
+      </section>
+
+      <footer>
+        <span id="extension-version"></span>
+        <a href="https://www.dowen.idv.tw/any_subtitle/privacy.html" target="_blank" rel="noreferrer">隱私權政策</a>
+      </footer>
+    </main>
+    <script src="onboarding.js"></script>
+  </body>
+</html>
