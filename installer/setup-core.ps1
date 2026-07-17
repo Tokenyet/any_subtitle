@@ -23,7 +23,9 @@ $DownloadsDir = Join-Path $AppDir "downloads"
 $TempDir = Join-Path ([IO.Path]::GetTempPath()) ("any-subtitle-core-" + [Guid]::NewGuid().ToString("N"))
 $HostPath = Join-Path $AppDir "any-subtitle-host.exe"
 $ManifestPath = Join-Path $AppDir "$HostName.json"
+$ErrorPath = Join-Path $AppDir "install-error.txt"
 $Succeeded = $false
+$CurrentStep = "Starting setup"
 
 function Write-Utf8NoBom {
   param([string]$Path, [string]$Value)
@@ -125,22 +127,32 @@ function Register-NativeHost {
 
 try {
   New-Item -ItemType Directory -Force -Path $AppDir, $ToolchainRoot, $CudaDir, $ModelsDir, $DownloadsDir, $TempDir | Out-Null
-
-  $NvidiaSmi = Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue
-  if (-not $NvidiaSmi -and (Test-Path "$env:WINDIR\System32\nvidia-smi.exe")) {
-    $NvidiaSmi = Get-Item "$env:WINDIR\System32\nvidia-smi.exe"
+  if (Test-Path -LiteralPath $ErrorPath) {
+    Remove-Item -LiteralPath $ErrorPath -Force
   }
+
+  $CurrentStep = "Checking the NVIDIA driver"
+  $NvidiaCandidates = @(
+    (Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue).Source,
+    (Join-Path $env:WINDIR "System32\nvidia-smi.exe"),
+    (Join-Path $env:WINDIR "Sysnative\nvidia-smi.exe"),
+    $(if ($env:ProgramW6432) { Join-Path $env:ProgramW6432 "NVIDIA Corporation\NVSMI\nvidia-smi.exe" }),
+    $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles "NVIDIA Corporation\NVSMI\nvidia-smi.exe" })
+  ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+  $NvidiaSmi = $NvidiaCandidates | Select-Object -First 1
   if (-not $NvidiaSmi) {
     throw "找不到 NVIDIA 驅動程式。Any Subtitle 目前需要 NVIDIA GTX/RTX 顯示卡。"
   }
 
-  Write-Host "[1/6] Installing yt-dlp"
+  $CurrentStep = "Installing yt-dlp"
+  Write-Host "[1/6] $CurrentStep"
   Download-File `
     "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe" `
     (Join-Path $ToolchainRoot "yt-dlp.exe") `
     10000000
 
-  Write-Host "[2/6] Installing Deno"
+  $CurrentStep = "Installing Deno"
+  Write-Host "[2/6] $CurrentStep"
   $DenoPath = Join-Path $ToolchainRoot "deno.exe"
   if ($ForceUpdate -or -not (Test-Path -LiteralPath $DenoPath)) {
     $DenoZip = Join-Path $DownloadsDir "deno-x86_64-pc-windows-msvc.zip"
@@ -157,7 +169,8 @@ try {
     Write-Host "Reusing $DenoPath"
   }
 
-  Write-Host "[3/6] Installing FFmpeg"
+  $CurrentStep = "Installing FFmpeg"
+  Write-Host "[3/6] $CurrentStep"
   $FfmpegReady = @("ffmpeg.exe", "ffprobe.exe") |
     ForEach-Object { Test-Path -LiteralPath (Join-Path $ToolchainRoot $_) } |
     Where-Object { -not $_ }
@@ -178,7 +191,8 @@ try {
     Write-Host "Reusing FFmpeg in $ToolchainRoot"
   }
 
-  Write-Host "[4/6] Installing CUDA whisper.cpp"
+  $CurrentStep = "Installing CUDA whisper.cpp"
+  Write-Host "[4/6] $CurrentStep"
   $WhisperRelease = "existing"
   $CudaMissing = @("whisper-cli.exe", "whisper-server.exe", "ggml-cuda.dll") |
     ForEach-Object { Test-Path -LiteralPath (Join-Path $CudaDir $_) } |
@@ -217,7 +231,8 @@ try {
     Write-Host "Reusing CUDA whisper.cpp in $CudaDir"
   }
 
-  Write-Host "[5/6] Installing subtitle models"
+  $CurrentStep = "Installing subtitle models"
+  Write-Host "[5/6] $CurrentStep"
   Download-File `
     "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin" `
     (Join-Path $ModelsDir "ggml-small.bin") `
@@ -231,12 +246,13 @@ try {
     (Join-Path $ModelsDir "ggml-silero-v6.2.0.bin") `
     500000
 
-  Write-Host "[6/6] Registering Any Subtitle with Chromium browsers"
+  $CurrentStep = "Registering Any Subtitle with Chromium browsers"
+  Write-Host "[6/6] $CurrentStep"
   Save-ToolchainSettings
   Register-NativeHost
 
   $InstallState = [ordered]@{
-    version = "0.3.0"
+    version = "0.3.1"
     installedAt = (Get-Date).ToString("o")
     extensionId = $ExtensionId
     toolchainRoot = $ToolchainRoot
@@ -247,6 +263,20 @@ try {
   Write-Host ""
   Write-Host "Any Subtitle 本機核心已安裝完成。" -ForegroundColor Green
   Write-Host "請回到擴充功能設定頁按『重新檢查』。"
+} catch {
+  $ErrorRecord = $_
+  $ErrorDetails = @(
+    "Any Subtitle Local Core setup failed."
+    "Time: $((Get-Date).ToString('o'))"
+    "Step: $CurrentStep"
+    "Error: $($ErrorRecord.Exception.Message)"
+    ""
+    ($ErrorRecord | Out-String).Trim()
+  ) -join [Environment]::NewLine
+  New-Item -ItemType Directory -Force -Path $AppDir | Out-Null
+  Write-Utf8NoBom $ErrorPath $ErrorDetails
+  [Console]::Error.WriteLine($ErrorDetails)
+  exit 1
 } finally {
   if (Test-Path -LiteralPath $TempDir) {
     Remove-Item -LiteralPath $TempDir -Recurse -Force -ErrorAction SilentlyContinue

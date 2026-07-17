@@ -15,6 +15,8 @@ function readJson(relativePath) {
 
 const manifest = readJson("manifest.json");
 const packageJson = readJson("package.json");
+const coreSetup = fs.readFileSync(path.join(root, "installer/setup-core.ps1"), "utf8");
+const coreInstaller = fs.readFileSync(path.join(root, "installer/AnySubtitleCore.iss"), "utf8");
 assert(manifest.manifest_version === 3, "manifest_version must be 3");
 assert(manifest.version === packageJson.version, "Manifest and package versions must match");
 assert(manifest.minimum_chrome_version === "116", "Chrome 116 is the required baseline");
@@ -161,6 +163,15 @@ assert(
   onboarding.includes("AnySubtitleCoreSetup.exe")
     && onboarding.includes('send("ping")'),
   "Onboarding must expose the stable core installer and a native-host recheck"
+);
+assert(
+  coreSetup.includes('install-error.txt')
+    && coreSetup.includes('Step: $CurrentStep')
+    && coreInstaller.includes('LoadStringFromFile(ErrorPath, ErrorDetails)')
+    && coreInstaller.includes('CloseApplications=force')
+    && coreInstaller.includes('CloseApplicationsFilter=any-subtitle-host.exe')
+    && coreInstaller.includes("ExpandConstant('{sysnative}\\WindowsPowerShell"),
+  "The Local Core installer must close a locked host, use 64-bit PowerShell and display the real setup error"
 );
 
 console.log("Smoke checks passed.");
