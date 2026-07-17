@@ -1,12 +1,12 @@
 # Chrome Web Store Submission Draft
 
-This document is paste-ready except for fields marked **PENDING**. Verify all
-public URLs and rebuild the Windows installer with the assigned store extension
-ID before submission.
+This document is paste-ready for the current package. Confirm the live dashboard
+values once more before submitting the item for review.
 
 ## Package
 
 - Version: `0.3.0`
+- Chrome Web Store extension ID: `eafleifhjcogliglgohddcgfbpeaioni`
 - ZIP: `dist/any-subtitle.zip`
 - Target: Unlisted beta, Windows, Chrome/Edge/Vivaldi 116+
 - Companion: `AnySubtitleCoreSetup.exe`
@@ -126,9 +126,9 @@ the developer does not receive the processed data.
 
 ## Public URLs
 
-- Homepage: `https://www.dowen.idv.tw/any_subtitle/` — **PENDING publication and live verification**
-- Privacy policy: `https://www.dowen.idv.tw/any_subtitle/privacy.html` — **PENDING publication and live verification**
-- Support: `https://www.dowen.idv.tw/any_subtitle/support.html` — **PENDING publication and live verification**
+- Homepage: `https://www.dowen.idv.tw/any_subtitle/`
+- Privacy policy: `https://www.dowen.idv.tw/any_subtitle/privacy.html`
+- Support: `https://www.dowen.idv.tw/any_subtitle/support.html`
 
 ## Reviewer instructions
 
@@ -146,12 +146,13 @@ Chrome will reject the Native Messaging connection.
 
 ## Submission checklist
 
-- [ ] Create the first Chrome Web Store draft and record its permanent extension ID.
-- [ ] Build `AnySubtitleCoreSetup.exe` with that extension ID.
-- [ ] Publish the public Local Core release asset and verify the stable URL.
-- [ ] Publish and visually verify homepage, privacy and support URLs.
-- [ ] Replace the pending markers above with live verification results.
-- [ ] Upload the extension ZIP and store assets.
+- [x] Create the first Chrome Web Store draft and record its permanent extension ID.
+- [x] Build `AnySubtitleCoreSetup.exe` with that extension ID.
+- [x] Publish the public Local Core release asset and verify the stable URL.
+- [x] Publish and visually verify homepage, privacy and support URLs.
+- [x] Replace the pending markers above with live verification results.
+- [x] Upload the extension ZIP.
+- [ ] Upload the store assets.
 - [ ] Paste the permission and privacy answers above.
 - [ ] Set distribution to Unlisted for the first review.
 - [ ] Test the store-installed extension against the published installer before submitting for review.

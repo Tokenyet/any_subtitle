@@ -60,7 +60,7 @@ Any Subtitle does not provide video download or export functionality. Use it onl
 
 Transcription runs locally with no cloud ASR, ads, analytics or telemetry. Live audio is not retained. Accurate tracks are cached for seven days. Current-site cookies are read only after an explicit optional permission grant for a protected request and are deleted after that job.
 
-## URLs pending publication
+## Public URLs
 
 - Homepage: `https://www.dowen.idv.tw/any_subtitle/`
 - Privacy: `https://www.dowen.idv.tw/any_subtitle/privacy.html`
