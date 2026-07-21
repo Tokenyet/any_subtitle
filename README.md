@@ -2,6 +2,11 @@
 
 Any Subtitle is a Windows-first Chromium extension that generates subtitles locally for the current tab.
 
+The extension interface and Chrome Web Store listing are localized in English,
+Taiwan Traditional Chinese, and Japanese. English is the fallback for other
+browser locales. Caption recognition remains independent of the interface
+language and can continue to use automatic language detection.
+
 - **Live subtitles** capture the active tab audio and update an overlay every few seconds.
 - **Accurate subtitles** reuse page caption tracks when available, otherwise download or record audio and run a larger local Whisper model.
 - Accurate tracks are cached per video-page URL for seven days. While a cache is valid, the popup offers **Use accurate subtitles** instead of retranscribing.

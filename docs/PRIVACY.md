@@ -64,4 +64,4 @@ remove the separately installed Local Core.
 
 ## Contact
 
-Support page: https://www.dowen.idv.tw/any_subtitle/support.html
+Support page: https://tokenyet.github.io/any_subtitle/support.html

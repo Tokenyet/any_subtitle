@@ -6,7 +6,7 @@ import unittest
 import wave
 
 from any_subtitle.audio import has_meaningful_audio, pcm_energy, pcm_to_wav_bytes
-from any_subtitle.sessions import decode_pcm, merge_new_stable
+from any_subtitle.sessions import LiveChunk, LiveSession, SessionManager, decode_pcm, merge_new_stable
 from any_subtitle.whisper_server import parse_verbose_segments
 
 
@@ -53,6 +53,55 @@ class AudioAndLiveTests(unittest.TestCase):
         self.assertEqual(language, "en")
         self.assertEqual(segments[0]["startMs"], 1000)
         self.assertEqual(segments[0]["endMs"], 2500)
+
+    def test_silent_live_window_emits_an_empty_caption_update(self):
+        events = []
+
+        class ServerThatMustNotRun:
+            def transcribe(self, _chunks, _language):
+                raise AssertionError("silence must not be sent to Whisper")
+
+        session = LiveSession("session-1", 1, "", "", "auto", True)
+        session.chunks.extend([
+            LiveChunk(index, b"\x00\x00" * 16000, index * 1000, {})
+            for index in range(3)
+        ])
+        manager = SessionManager(events.append, ServerThatMustNotRun())
+
+        manager._infer_live(session)
+
+        self.assertEqual(events, [{
+            "event": "captionUpdate",
+            "sessionId": "session-1",
+            "language": "",
+            "stableCues": [],
+            "provisionalCue": None,
+        }])
+
+    def test_vad_window_without_speech_emits_an_empty_caption_update(self):
+        events = []
+
+        class ServerWithoutSpeech:
+            def transcribe(self, _chunks, _language):
+                return {"language": "zh", "transcription": []}
+
+        signal = (1000).to_bytes(2, "little", signed=True) * 16000
+        session = LiveSession("session-2", 1, "", "", "auto", True)
+        session.chunks.extend([
+            LiveChunk(index, signal, index * 1000, {})
+            for index in range(3)
+        ])
+        manager = SessionManager(events.append, ServerWithoutSpeech())
+
+        manager._infer_live(session)
+
+        self.assertEqual(events, [{
+            "event": "captionUpdate",
+            "sessionId": "session-2",
+            "language": "zh",
+            "stableCues": [],
+            "provisionalCue": None,
+        }])
 
 
 if __name__ == "__main__":

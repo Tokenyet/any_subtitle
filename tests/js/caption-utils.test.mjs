@@ -3,7 +3,9 @@ import test from "node:test";
 
 import {
   findCueAt,
+  LIVE_CAPTION_STALE_MS,
   normalizeCue,
+  selectLiveCaptionCue,
   sortAndDedupeCues
 } from "../../src/caption-utils.mjs";
 
@@ -40,4 +42,20 @@ test("finds a cue using binary search", () => {
   ]);
   assert.equal(findCueAt(cues, 1400)?.text, "B");
   assert.equal(findCueAt(cues, 3500), null);
+});
+
+test("selects only cues from the current live update", () => {
+  assert.equal(selectLiveCaptionCue([], null), null);
+  assert.equal(selectLiveCaptionCue([
+    { startMs: 1000, endMs: 2000, text: "stable" }
+  ], null)?.text, "stable");
+  assert.equal(selectLiveCaptionCue([
+    { startMs: 1000, endMs: 2000, text: "stable" }
+  ], {
+    startMs: 1500,
+    endMs: 2500,
+    text: "provisional",
+    status: "provisional"
+  })?.text, "provisional");
+  assert.equal(LIVE_CAPTION_STALE_MS, 4000);
 });

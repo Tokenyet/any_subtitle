@@ -223,10 +223,12 @@ class SessionManager:
                 language = session.language
             pcm_chunks = [chunk.pcm for chunk in chunks]
             if not has_meaningful_audio(pcm_chunks):
+                self._send_empty_caption_update(session)
                 return
             payload = self._server.transcribe(pcm_chunks, language)
             segments, detected_language = parse_verbose_segments(payload)
             if not segments:
+                self._send_empty_caption_update(session, detected_language)
                 return
             window_duration_ms = round(sum(len(chunk.pcm) for chunk in chunks) / 2 / SAMPLE_RATE * 1000)
             latest_anchor = chunks[-1].anchor
@@ -270,6 +272,22 @@ class SessionManager:
         finally:
             with session.lock:
                 session.inference_running = False
+
+    def _send_empty_caption_update(
+        self,
+        session: LiveSession,
+        language: str = "",
+    ) -> None:
+        with session.lock:
+            if session.stopped:
+                return
+        self._send_event({
+            "event": "captionUpdate",
+            "sessionId": session.session_id,
+            "language": language,
+            "stableCues": [],
+            "provisionalCue": None,
+        })
 
 
 def decode_pcm(value: Any) -> bytes:

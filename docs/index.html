@@ -1,35 +1,37 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Any Subtitle — 本機即時與精準字幕</title>
-    <meta name="description" content="使用本機 NVIDIA GPU，為目前瀏覽器分頁產生即時或精準字幕。">
+    <title>Any Subtitle — Local live and accurate captions</title>
+    <meta name="description" content="Generate live or accurate captions for the current browser tab with a local NVIDIA GPU.">
     <link rel="stylesheet" href="site.css">
+    <script defer src="site-i18n.js"></script>
   </head>
-  <body>
+  <body data-page="home">
     <main>
+      <nav class="language-switcher" aria-label="Language"><a data-lang="en" href="?lang=en">English</a><a data-lang="zh-TW" href="?lang=zh-TW">繁體中文</a><a data-lang="ja" href="?lang=ja">日本語</a></nav>
       <header>
         <div>
           <h1>Any Subtitle</h1>
-          <p class="lede">讓沒有字幕的影片，在你的電腦上產生字幕。</p>
+          <p class="lede" data-i18n="lead">Give videos without captions a local subtitle track.</p>
         </div>
       </header>
       <section class="grid">
-        <article class="card"><h2>即時字幕</h2><p>擷取你主動選取的分頁音訊，使用本機 GPU 持續更新字幕。</p></article>
-        <article class="card"><h2>精準字幕</h2><p>取得可用音訊並以較大的 Whisper 模型處理，完成後跟隨播放器時間軸。</p></article>
-        <article class="card"><h2>資料留在本機</h2><p>沒有雲端語音辨識、廣告、分析或遙測。精準字幕快取七天。</p></article>
+        <article class="card"><h2 data-i18n="liveTitle">Live captions</h2><p data-i18n="liveBody">Capture audio from the tab you select and update captions continuously with the local GPU.</p></article>
+        <article class="card"><h2 data-i18n="accurateTitle">Accurate captions</h2><p data-i18n="accurateBody">Use accessible audio and a larger Whisper model, then synchronize the result to the player timeline.</p></article>
+        <article class="card"><h2 data-i18n="localTitle">Data stays local</h2><p data-i18n="localBody">No cloud speech recognition, ads, analytics, or telemetry. Accurate tracks are cached for seven days.</p></article>
       </section>
       <section class="card">
-        <h2>需要 Windows 本機核心</h2>
-        <p>Chrome Web Store 擴充功能負責擷取與顯示；免費的 Any Subtitle Local Core 負責 FFmpeg、yt-dlp 與 CUDA Whisper。需要 Windows 10/11、NVIDIA GTX/RTX GPU，以及約 5 GB 空間。</p>
+        <h2 data-i18n="coreTitle">Windows Local Core required</h2>
+        <p data-i18n="coreBody">The extension captures and displays captions. The free Any Subtitle Local Core runs FFmpeg, yt-dlp, and CUDA Whisper. Windows 10/11, an NVIDIA GTX/RTX GPU, and about 5 GB are required.</p>
         <div class="actions">
-          <a class="button" href="https://github.com/Tokenyet/any_subtitle/releases/latest/download/AnySubtitleCoreSetup.exe">下載本機核心</a>
-          <a class="button secondary" href="privacy.html">隱私權政策</a>
-          <a class="button secondary" href="support.html">支援</a>
+          <a class="button" href="https://github.com/Tokenyet/any_subtitle/releases/latest/download/AnySubtitleCoreSetup.exe" data-i18n="downloadCore">Download Local Core</a>
+          <a class="button secondary" href="privacy.html" data-i18n="privacy">Privacy policy</a>
+          <a class="button secondary" href="support.html" data-i18n="support">Support</a>
         </div>
       </section>
-      <footer>Any Subtitle is not affiliated with YouTube, Twitch or Google.</footer>
+      <footer data-i18n="footer">Any Subtitle is not affiliated with YouTube, Twitch, or Google.</footer>
     </main>
   </body>
 </html>

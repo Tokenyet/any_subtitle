@@ -1,7 +1,7 @@
 {
   "name": "any-subtitle",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.2",
   "type": "module",
   "scripts": {
     "test": "node --test tests/js/*.test.mjs && python scripts/run-python-tests.py",

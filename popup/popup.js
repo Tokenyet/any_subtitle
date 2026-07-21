@@ -1,4 +1,5 @@
 const MESSAGE_TYPE = "any-subtitle";
+const { localizeDocument, msg } = globalThis.AnySubtitleI18n;
 const elements = Object.fromEntries([
   "host-state",
   "page-title",
@@ -29,6 +30,10 @@ let currentTargetTabId = 0;
 let currentPageAccessible = false;
 let accurateCache = { available: false };
 let hostAvailability = { connected: false, liveReady: false, accurateReady: false };
+let actionPending = false;
+let backgroundBusy = false;
+let stopPending = false;
+let startAttempt = 0;
 
 document.addEventListener("DOMContentLoaded", initialize);
 chrome.runtime.onMessage.addListener((message) => {
@@ -44,101 +49,133 @@ chrome.runtime.onMessage.addListener((message) => {
 });
 
 async function initialize() {
+  localizeDocument();
   bindActions();
   await loadSettings();
+  const stateResponse = await send("getState");
+  applyState(stateResponse.state || {});
   await refreshPage();
   await checkHost();
   await refreshAccurateCache().catch(() => {
     accurateCache = { available: false };
     updateButtons();
   });
-  const response = await send("getState");
-  applyState(response.state || {});
 }
 
 function bindActions() {
-  elements["start-live"].addEventListener("click", () => run(startLive));
-  elements["start-accurate"].addEventListener("click", () => run(startAccurate));
+  elements["start-live"].addEventListener("click", () => run(startLive, { startsWork: true }));
+  elements["start-accurate"].addEventListener("click", () => run(startAccurate, { startsWork: true }));
   elements.stop.addEventListener("click", () => run(stopCurrent));
-  elements["start-capture"].addEventListener("click", () => run(startCapture));
+  elements["start-capture"].addEventListener("click", () => run(startCapture, { startsWork: true }));
   elements["finish-capture"].addEventListener("click", () => run(finishCapture));
-  elements["retry-cookies"].addEventListener("click", () => run(retryWithCookies));
+  elements["retry-cookies"].addEventListener("click", () => run(retryWithCookies, { startsWork: true }));
   elements["open-setup"].addEventListener("click", () => run(openSetup));
   elements.language.addEventListener("change", saveSettings);
   elements.traditional.addEventListener("change", saveSettings);
 }
 
-async function run(action) {
+async function run(action, { startsWork = false } = {}) {
+  const attempt = startsWork ? ++startAttempt : 0;
+  if (startsWork) {
+    actionPending = true;
+    updateButtons();
+  }
   try {
-    setStatus("處理中…");
-    await action();
+    setStatus(msg("processing"));
+    await action(attempt);
   } catch (error) {
-    setStatus(error.message || String(error));
+    if (!startsWork || attempt === startAttempt) {
+      setStatus(error.message || String(error));
+    }
+  } finally {
+    if (startsWork && attempt === startAttempt) {
+      actionPending = false;
+      updateButtons();
+    }
   }
 }
 
-async function startLive() {
+async function startLive(attempt) {
   currentSessionHasAudio = false;
-  const response = await send("startLive", await actionPayload());
+  const payload = await actionPayload();
+  if (attempt !== startAttempt) return;
+  const response = await send("startLive", payload);
+  if (response.cancelled || attempt !== startAttempt) return;
   currentSessionId = response.sessionId || "";
   await refreshPage().catch(() => {});
   setStatus(currentSessionHasAudio
-    ? "已收到分頁音訊，正在等待語音辨識結果。"
-    : "即時字幕已啟動，正在等待分頁音訊。");
+    ? msg("audioReceivedWaiting")
+    : msg("liveStartedWaiting"));
 }
 
-async function startAccurate(extra = {}) {
+async function startAccurate(attempt, extra = {}) {
   const request = { ...(await actionPayload()), ...extra };
+  if (attempt !== startAttempt) return;
   lastAccurateRequest = request;
   const response = await send("startAccurate", request);
+  if (response.cancelled || attempt !== startAttempt) return;
   if (response.track) {
     accurateCache = {
       available: true,
       cueCount: response.track.cues?.length || 0
     };
+    const cueCount = response.track.cues?.length || 0;
     setStatus(response.cached
-      ? `已使用七天內的精準字幕，共 ${response.track.cues?.length || 0} 段。`
-      : `已載入頁面字幕，共 ${response.track.cues?.length || 0} 段。`);
+      ? msg("cachedTrackUsed", [String(cueCount)])
+      : msg("pageTrackLoaded", [String(cueCount)]));
     updateButtons();
     return;
   }
   currentJobId = response.jobId || "";
-  setStatus("已開始產生精準字幕。");
+  setStatus(msg("accurateStarted"));
 }
 
 async function stopCurrent() {
-  await send("stopCurrent", { jobId: currentJobId, sessionId: currentSessionId });
-  currentJobId = "";
-  currentSessionId = "";
-  currentSessionHasAudio = false;
-  setStatus("已停止。");
+  startAttempt += 1;
+  actionPending = false;
+  stopPending = true;
   updateButtons();
+  try {
+    await send("stopCurrent");
+    backgroundBusy = false;
+    currentJobId = "";
+    currentSessionId = "";
+    currentSessionHasAudio = false;
+    setStatus(msg("stopped"));
+  } finally {
+    stopPending = false;
+    updateButtons();
+  }
 }
 
-async function startCapture() {
+async function startCapture(attempt) {
   currentSessionHasAudio = false;
-  const response = await send("startCapture", await actionPayload());
+  const payload = await actionPayload();
+  if (attempt !== startAttempt) return;
+  const response = await send("startCapture", payload);
+  if (response.cancelled || attempt !== startAttempt) return;
   currentSessionId = response.sessionId || "";
   elements["start-capture"].hidden = true;
   elements["finish-capture"].hidden = false;
-  setStatus("錄音中。請從目標位置播放影片，完成後按「完成錄音並轉錄」。");
+  setStatus(msg("captureRecordingInstructions"));
 }
 
 async function finishCapture() {
   const response = await send("finishCapture", settingsPayload());
+  if (response.cancelled) return;
   currentSessionId = "";
   currentSessionHasAudio = false;
   currentJobId = response.jobId || "";
   elements["start-capture"].hidden = false;
   elements["finish-capture"].hidden = true;
-  setStatus("錄音完成，正在產生精準字幕。");
+  setStatus(msg("captureFinished"));
 }
 
-async function retryWithCookies() {
+async function retryWithCookies(attempt) {
   if (!lastAccurateRequest) {
-    throw new Error("沒有可重試的工作。");
+    throw new Error(msg("noRetryJob"));
   }
-  await startAccurate({ ...lastAccurateRequest, requestCookies: true });
+  await startAccurate(attempt, { ...lastAccurateRequest, requestCookies: true });
   elements["cookie-card"].hidden = true;
 }
 
@@ -153,24 +190,24 @@ async function checkHost() {
     };
     const fullyReady = hostAvailability.liveReady && hostAvailability.accurateReady;
     elements["host-state"].textContent = fullyReady
-      ? "本機可用"
-      : (hostAvailability.liveReady ? "部分可用" : "需完成設定");
+      ? msg("hostReady")
+      : (hostAvailability.liveReady ? msg("hostPartiallyReady") : msg("setupIncomplete"));
     elements["host-state"].className = `badge ${fullyReady ? "ready" : "warning"}`;
     elements["setup-card"].hidden = fullyReady;
     if (!fullyReady) {
       const missing = missingToolLabels(status.tools || {});
       elements["setup-message"].textContent = missing.length
-        ? `尚缺少：${missing.join("、")}。`
-        : "本機核心已連線，但依賴工具尚未準備完成。";
+        ? msg("missingTools", [formatList(missing)])
+        : msg("coreDependenciesIncomplete");
       setStatus(status.message || elements["setup-message"].textContent);
     }
   } catch (error) {
     hostAvailability = { connected: false, liveReady: false, accurateReady: false };
-    elements["host-state"].textContent = "未安裝";
+    elements["host-state"].textContent = msg("notInstalled");
     elements["host-state"].className = "badge error";
     elements["setup-card"].hidden = false;
-    elements["setup-message"].textContent = "請先安裝一次 Any Subtitle 本機核心，影音與字幕辨識仍只在這台電腦上處理。";
-    setStatus("尚未安裝 Any Subtitle 本機核心。請開啟安裝引導。");
+    elements["setup-message"].textContent = msg("installCoreFirst");
+    setStatus(msg("noCoreStatus"));
   }
   updateButtons();
 }
@@ -185,10 +222,10 @@ async function refreshPage() {
   const response = await send("getActivePage", { targetTabId });
   currentPageAccessible = Boolean(response.page?.id && response.page?.url);
   elements["page-title"].textContent = response.page?.title
-    || (currentPageAccessible ? "未命名分頁" : "目前分頁無法使用");
+    || (currentPageAccessible ? msg("unnamedTab") : msg("unavailableTab"));
   elements["page-url"].textContent = response.page?.url || "";
   if (!currentPageAccessible) {
-    setStatus("請切回一般 HTTP(S) 影片分頁，再點工具列上的 Any Subtitle 圖示。");
+    setStatus(msg("switchToVideo"));
   }
   updateButtons();
 }
@@ -232,7 +269,7 @@ async function getCurrentTargetTabId() {
   const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   const tab = tabs.find((candidate) => candidate?.id);
   if (!tab?.id) {
-    throw new Error("找不到目前的影片分頁。請回到影片分頁後重試。");
+    throw new Error(msg("noTargetVideo"));
   }
   currentTargetTabId = tab.id;
   return currentTargetTabId;
@@ -242,7 +279,7 @@ function handleNativeEvent(event) {
   if (event.jobId) {
     currentJobId = event.jobId;
   }
-  if (event.sessionId) {
+  if (event.sessionId && event.event !== "sessionStopped") {
     if (event.sessionId !== currentSessionId) {
       currentSessionHasAudio = false;
     }
@@ -251,34 +288,38 @@ function handleNativeEvent(event) {
   if (event.event === "jobProgress") {
     setProgress(event.percent, event.detail);
   } else if (event.event === "trackReady") {
-    setProgress(100, "字幕已完成");
+    setProgress(100, msg("subtitlesComplete"));
     currentJobId = "";
     accurateCache = { available: true };
   } else if (event.event === "sessionReady") {
     if (!currentSessionHasAudio) {
-      setStatus("模型已就緒，正在等待分頁音訊。");
+      setStatus(msg("modelReadyWaitingAudio"));
     }
   } else if (event.event === "audioCaptureActive") {
     currentSessionHasAudio = true;
-    setStatus("已收到分頁音訊，正在等待語音辨識結果。");
+    setStatus(msg("audioReceivedWaiting"));
   } else if (event.event === "captionUpdate") {
     currentSessionHasAudio = true;
-    setStatus("即時字幕辨識中，字幕會顯示在播放器上。");
+    setStatus(msg("liveRecognizing"));
   } else if (event.event === "audioCaptureTimeout") {
-    setStatus("尚未收到分頁音訊。請確認影片正在播放且分頁有聲音，再停止後重試。");
+    setStatus(msg("noAudioTimeout"));
   } else if (event.event === "audioCaptureError") {
-    setStatus(`音訊擷取失敗：${event.error || "未知錯誤"}`);
+    setStatus(msg("audioCaptureFailed", [event.error || msg("unknownError")]));
   } else if (event.event === "error") {
-    setStatus(event.error || event.detail || "工作失敗");
+    setStatus(event.error || event.detail || msg("jobFailed"));
     elements["capture-card"].hidden = !event.fallbackAvailable;
     elements["cookie-card"].hidden = !event.authenticationRequired;
     currentJobId = "";
+  } else if (event.event === "sessionStopped") {
+    currentSessionId = "";
+    currentSessionHasAudio = false;
   }
   updateButtons();
 }
 
 function applyState(state) {
   const previousSessionId = currentSessionId;
+  backgroundBusy = state.busy === true || Boolean(state.jobId || state.sessionId);
   currentJobId = state.jobId || "";
   currentSessionId = state.sessionId || "";
   if (!currentSessionId) {
@@ -290,18 +331,18 @@ function applyState(state) {
   }
   if (currentSessionId && state.mode === "live") {
     if (state.captureState === "error") {
-      setStatus("音訊擷取失敗，請停止後重試。");
+      setStatus(msg("liveCaptureFailed"));
     } else if (state.captureState === "timeout") {
-      setStatus("尚未收到分頁音訊。請確認影片正在播放且有聲音。");
+      setStatus(msg("noAudio"));
     } else if (currentSessionHasAudio) {
-      setStatus("即時字幕辨識中，字幕會顯示在播放器上。");
+      setStatus(msg("liveRecognizing"));
     } else {
-      setStatus("即時字幕已啟動，正在等待分頁音訊。");
+      setStatus(msg("liveStartedWaiting"));
     }
   } else if (currentSessionId && state.mode === "capture") {
     setStatus(currentSessionHasAudio
-      ? "完整播放錄音中，已收到分頁音訊。"
-      : "完整播放錄音中，正在等待分頁音訊。");
+      ? msg("captureAudioReceived")
+      : msg("captureWaiting"));
   }
   elements["capture-card"].hidden = !state.fallbackAvailable;
   elements["cookie-card"].hidden = !state.authenticationRequired;
@@ -309,15 +350,15 @@ function applyState(state) {
 }
 
 function updateButtons() {
-  const busy = Boolean(currentJobId || currentSessionId);
-  elements.stop.disabled = !busy;
+  const busy = actionPending || stopPending || backgroundBusy || Boolean(currentJobId || currentSessionId);
+  elements.stop.disabled = !busy || stopPending;
   elements["start-live"].disabled = busy || !currentPageAccessible || !hostAvailability.liveReady;
   elements["start-accurate"].disabled = busy || !currentPageAccessible || !hostAvailability.accurateReady;
   elements["start-accurate"].textContent = accurateCache.available
-    ? "使用精準字幕"
-    : "產生精準字幕";
+    ? msg("useAccurate")
+    : msg("generateAccurate");
   elements["start-accurate"].title = accurateCache.available && accurateCache.expiresAt
-    ? `快取有效至 ${new Date(accurateCache.expiresAt).toLocaleString()}`
+    ? msg("cacheValidUntil", [new Date(accurateCache.expiresAt).toLocaleString(uiLocale())])
     : "";
   elements["start-capture"].disabled = busy || !currentPageAccessible || !hostAvailability.accurateReady;
 }
@@ -327,11 +368,11 @@ function missingToolLabels(tools) {
     "ffmpeg": "FFmpeg",
     "ffprobe": "FFprobe",
     "yt-dlp": "yt-dlp",
-    "whisper-server": "Whisper 即時核心",
-    "whisper-cli": "Whisper 精準核心",
-    "small-model": "即時字幕模型",
-    "accurate-model": "精準字幕模型",
-    "vad-model": "語音偵測模型"
+    "whisper-server": msg("toolWhisperLive"),
+    "whisper-cli": msg("toolWhisperAccurate"),
+    "small-model": msg("toolSmallModel"),
+    "accurate-model": msg("toolAccurateModel"),
+    "vad-model": msg("toolVadModel")
   };
   return Object.entries(labels)
     .filter(([key]) => tools[key]?.available !== true)
@@ -349,6 +390,14 @@ function setStatus(text) {
   elements.status.textContent = String(text || "");
 }
 
+function uiLocale() {
+  return chrome.i18n.getMessage("@@ui_locale").replaceAll("_", "-") || "en";
+}
+
+function formatList(items) {
+  return new Intl.ListFormat(uiLocale(), { style: "short", type: "conjunction" }).format(items);
+}
+
 async function send(action, payload = {}) {
   const timeoutMs = ["startLive", "startCapture"].includes(action) ? 12000 : 35000;
   let timeout;
@@ -356,7 +405,7 @@ async function send(action, payload = {}) {
     chrome.runtime.sendMessage({ type: MESSAGE_TYPE, action, ...payload }),
     new Promise((_, reject) => {
       timeout = setTimeout(() => reject(new Error(
-        "擴充套件沒有回應。請關閉 popup，重新點擊工具列上的 Any Subtitle 後再試。"
+        msg("extensionNoResponse")
       )), timeoutMs);
     })
   ]).finally(() => clearTimeout(timeout));

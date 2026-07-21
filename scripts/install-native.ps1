@@ -77,11 +77,28 @@ function Copy-FileWithRetry {
   }
 }
 
+function Stop-InstalledHost {
+  param([string]$ExecutablePath)
+  $ExpectedPath = [IO.Path]::GetFullPath($ExecutablePath)
+  $Processes = Get-CimInstance Win32_Process -Filter "Name = 'any-subtitle-host.exe'" |
+    Where-Object {
+      $_.ExecutablePath -and
+      [IO.Path]::GetFullPath([string]$_.ExecutablePath).Equals(
+        $ExpectedPath,
+        [StringComparison]::OrdinalIgnoreCase
+      )
+    }
+  foreach ($Process in $Processes) {
+    Stop-Process -Id $Process.ProcessId -Force -ErrorAction Stop
+  }
+}
+
 New-Item -ItemType Directory -Force -Path $NativeDest, $ScriptsDest | Out-Null
 Copy-Item -Path (Join-Path $Root "native-host\*") -Destination $NativeDest -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $Root "scripts\update-tools.ps1") -Destination $ScriptsDest -Force
 
 if (Test-Path -LiteralPath $BuiltHost) {
+  Stop-InstalledHost $InstalledHost
   Copy-FileWithRetry $BuiltHost $InstalledHost
   $HostPath = $InstalledHost
 } else {
@@ -99,12 +116,24 @@ set PYTHONUTF8=1
   $HostPath = $LauncherPath
 }
 
+$AllowedOrigins = @("chrome-extension://$ExtensionId/")
+if (Test-Path -LiteralPath $ManifestPath) {
+  try {
+    $ExistingManifest = Get-Content -Raw -LiteralPath $ManifestPath | ConvertFrom-Json
+    $AllowedOrigins += @($ExistingManifest.allowed_origins) |
+      Where-Object { [string]$_ -match '^chrome-extension://[a-p]{32}/$' }
+  } catch {
+    Write-Warning "Could not read the existing native host manifest; replacing it."
+  }
+}
+$AllowedOrigins = @($AllowedOrigins | Sort-Object -Unique)
+
 $Manifest = [ordered]@{
   name = $HostName
   description = "Any Subtitle local native messaging host"
   path = $HostPath
   type = "stdio"
-  allowed_origins = @("chrome-extension://$ExtensionId/")
+  allowed_origins = $AllowedOrigins
 }
 $Manifest | ConvertTo-Json -Depth 4 | Set-Content -Encoding UTF8 -LiteralPath $ManifestPath
 

@@ -19,6 +19,9 @@ const coreSetup = fs.readFileSync(path.join(root, "installer/setup-core.ps1"), "
 const coreInstaller = fs.readFileSync(path.join(root, "installer/AnySubtitleCore.iss"), "utf8");
 assert(manifest.manifest_version === 3, "manifest_version must be 3");
 assert(manifest.version === packageJson.version, "Manifest and package versions must match");
+assert(manifest.default_locale === "en", "English must be the global fallback locale");
+assert(manifest.name === "__MSG_extensionName__", "The extension name must be localized");
+assert(manifest.description === "__MSG_extensionDescription__", "The extension summary must be localized");
 assert(manifest.minimum_chrome_version === "116", "Chrome 116 is the required baseline");
 for (const permission of [
   "activeTab",
@@ -41,6 +44,7 @@ assert(!manifest.side_panel, "The extension must not expose a side panel");
 for (const file of [
   "src/background.js",
   "src/content.js",
+  "src/i18n.js",
   "src/caption-utils.mjs",
   "offscreen/offscreen.html",
   "offscreen/offscreen.js",
@@ -55,6 +59,9 @@ for (const file of [
   "icons/icon32.png",
   "icons/icon48.png",
   "icons/icon128.png",
+  "_locales/en/messages.json",
+  "_locales/zh_TW/messages.json",
+  "_locales/ja/messages.json",
   "native-host/any_subtitle_host.py",
   "native-host/any_subtitle/host.py",
   "scripts/install-native.ps1",
@@ -110,10 +117,13 @@ assert(
   "The overlay host must stay visible and follow the primary video rectangle"
 );
 assert(
-  content.includes('font-family: "Microsoft JhengHei UI", "Microsoft JhengHei"')
+  content.includes(':host([lang^="zh"])')
+    && content.includes(':host([lang^="ja"])')
+    && content.includes(':host([lang^="ko"])')
+    && content.includes('font-family: "Microsoft JhengHei UI", "Microsoft JhengHei"')
     && content.includes("font-synthesis: none")
     && !content.includes("-webkit-text-stroke"),
-  "Traditional Chinese captions must use a native UI font without synthetic weight or hard strokes"
+  "Captions must use language-aware native fonts without synthetic weight or hard strokes"
 );
 for (const action of [
   "startLiveSession",
@@ -132,6 +142,7 @@ for (const action of [
 
 const popup = fs.readFileSync(path.join(root, "popup/popup.html"), "utf8");
 const onboarding = fs.readFileSync(path.join(root, "onboarding/onboarding.js"), "utf8");
+const installNative = fs.readFileSync(path.join(root, "scripts/install-native.ps1"), "utf8");
 for (const id of [
   "start-live",
   "start-accurate",
@@ -143,7 +154,7 @@ for (const id of [
 }
 assert(!popup.includes('id="reload-track"'), "The accurate button must replace the separate reload-track control");
 assert(
-  popupScript.includes('"使用精準字幕"')
+  popupScript.includes('msg("useAccurate")')
     && background.includes('action: "trackStatus"'),
   "A fresh accurate track must switch the primary action to cached subtitle playback"
 );
@@ -163,6 +174,17 @@ assert(
   onboarding.includes("AnySubtitleCoreSetup.exe")
     && onboarding.includes('send("ping")'),
   "Onboarding must expose the stable core installer and a native-host recheck"
+);
+assert(
+  installNative.includes("Stop-InstalledHost")
+    && installNative.includes("Get-CimInstance Win32_Process")
+    && installNative.includes("$ExistingManifest.allowed_origins")
+    && installNative.includes("Sort-Object -Unique"),
+  "Development native-host repair must stop only the installed host and preserve existing extension origins"
+);
+assert(
+  background.includes('files: ["src/i18n.js", "src/content.js"]'),
+  "The localized content helper must be injected before the content script"
 );
 assert(
   coreSetup.includes('install-error.txt')

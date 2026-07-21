@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>設定 Any Subtitle</title>
+    <title data-i18n="onboardingTitle">Set up Any Subtitle</title>
     <link rel="stylesheet" href="onboarding.css">
   </head>
   <body>
@@ -11,17 +11,17 @@
       <header class="hero">
         <img src="../icons/icon128.png" width="88" height="88" alt="">
         <div>
-          <p class="eyebrow">只需設定一次</p>
-          <h1>安裝本機字幕核心</h1>
-          <p class="lede">Chrome 擴充功能負責擷取分頁音訊與顯示字幕；語音辨識由你電腦上的 NVIDIA GPU 完成。</p>
+          <p class="eyebrow" data-i18n="setupEyebrow">One-time setup</p>
+          <h1 data-i18n="installCoreHeading">Install the Local Subtitle Core</h1>
+          <p class="lede" data-i18n="installCoreLead">The extension captures tab audio and displays captions; your NVIDIA GPU performs transcription locally.</p>
         </div>
       </header>
 
       <section id="status-card" class="status-card checking" aria-live="polite">
         <div class="status-dot" aria-hidden="true"></div>
         <div>
-          <strong id="status-title">正在檢查本機核心…</strong>
-          <p id="status-detail">請稍候。</p>
+          <strong id="status-title" data-i18n="checkingCore">Checking the Local Core…</strong>
+          <p id="status-detail" data-i18n="pleaseWait">Please wait.</p>
         </div>
       </section>
 
@@ -29,47 +29,48 @@
         <article>
           <span class="step-number">1</span>
           <div>
-            <h2>下載 Windows 安裝器</h2>
-            <p>安裝器很小，會從官方來源下載 FFmpeg、yt-dlp、CUDA Whisper 與字幕模型。</p>
-            <button id="download-core" class="primary">下載 Any Subtitle 本機核心</button>
+            <h2 data-i18n="downloadInstallerHeading">Download the Windows installer</h2>
+            <p data-i18n="downloadInstallerDescription">The small installer downloads FFmpeg, yt-dlp, CUDA Whisper, and caption models from their public release sources.</p>
+            <button id="download-core" class="primary" data-i18n="downloadCoreButton">Download Any Subtitle Local Core</button>
           </div>
         </article>
         <article>
           <span class="step-number">2</span>
           <div>
-            <h2>完成安裝與模型下載</h2>
-            <p>Windows 可能顯示安全確認。依賴下載約 2.5–3 GB，安裝後約占 4 GB；時間取決於網路速度。</p>
+            <h2 data-i18n="finishInstallHeading">Complete installation and model downloads</h2>
+            <p data-i18n="finishInstallDescription">Windows may show a security prompt. Downloads are about 2.5–3 GB and use about 4 GB after installation.</p>
           </div>
         </article>
         <article>
           <span class="step-number">3</span>
           <div>
-            <h2>回來重新檢查</h2>
-            <p>安裝完成後不必重新安裝擴充功能。</p>
-            <button id="recheck">我已安裝，重新檢查</button>
+            <h2 data-i18n="recheckHeading">Return and check again</h2>
+            <p data-i18n="recheckDescription">You do not need to reinstall the browser extension.</p>
+            <button id="recheck" data-i18n="recheckButton">I installed it, check again</button>
           </div>
         </article>
       </section>
 
       <section class="requirements">
-        <h2>系統需求</h2>
+        <h2 data-i18n="requirementsHeading">System requirements</h2>
         <ul>
-          <li>Windows 10 或 Windows 11，Chrome／Edge／Vivaldi 116 以上</li>
-          <li>NVIDIA GTX／RTX 顯示卡與可用的 NVIDIA 驅動程式</li>
-          <li>至少 5 GB 可用磁碟空間</li>
+          <li data-i18n="requirementOs">Windows 10 or 11 and Chrome, Edge, or Vivaldi 116+</li>
+          <li data-i18n="requirementGpu">An NVIDIA GTX/RTX GPU with a working NVIDIA driver</li>
+          <li data-i18n="requirementDisk">At least 5 GB of free disk space</li>
         </ul>
       </section>
 
       <section class="privacy">
-        <h2>哪些資料會離開電腦？</h2>
-        <p>字幕辨識、音訊暫存與字幕快取都留在本機。安裝期間只會向 GitHub、Hugging Face 與 FFmpeg 發行來源下載工具及模型；Any Subtitle 不提供雲端 ASR 或遙測。</p>
+        <h2 data-i18n="privacyQuestion">What data leaves this computer?</h2>
+        <p data-i18n="privacyLead">Transcription, temporary audio, and caption caches stay local. Installation downloads tools and models from public release sources; Any Subtitle has no cloud ASR or telemetry.</p>
       </section>
 
       <footer>
         <span id="extension-version"></span>
-        <a href="https://www.dowen.idv.tw/any_subtitle/privacy.html" target="_blank" rel="noreferrer">隱私權政策</a>
+        <a href="https://www.dowen.idv.tw/any_subtitle/privacy.html" target="_blank" rel="noreferrer" data-i18n="privacyPolicy">Privacy policy</a>
       </footer>
     </main>
+    <script src="../src/i18n.js"></script>
     <script src="onboarding.js"></script>
   </body>
 </html>

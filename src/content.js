@@ -5,6 +5,7 @@
   globalThis.__anySubtitleLoaded = true;
 
   const MESSAGE_TYPE = "any-subtitle";
+  const { msg } = globalThis.AnySubtitleI18n;
   let utilsPromise = null;
   let host = null;
   let shadow = null;
@@ -14,6 +15,7 @@
   let provisionalCue = null;
   let trackCues = [];
   let renderTimer = null;
+  let liveCaptionClearTimer = null;
   let anchorTimer = null;
   let seekEpoch = 0;
   let boundMedia = null;
@@ -69,6 +71,7 @@
     }
     host = document.createElement("div");
     host.id = "any-subtitle-overlay-host";
+    host.lang = chrome.i18n.getMessage("@@ui_locale").replaceAll("_", "-") || "en";
     shadow = host.attachShadow({ mode: "open" });
     const style = document.createElement("style");
     style.textContent = `
@@ -80,8 +83,17 @@
         pointer-events: none;
         overflow: hidden;
         container-type: inline-size;
-        font-family: "Microsoft JhengHei UI", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+        font-family: "Segoe UI", "Noto Sans", sans-serif;
         font-synthesis: none;
+      }
+      :host([lang^="zh"]) {
+        font-family: "Microsoft JhengHei UI", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+      }
+      :host([lang^="ja"]) {
+        font-family: "Yu Gothic UI", "Meiryo UI", "Noto Sans JP", sans-serif;
+      }
+      :host([lang^="ko"]) {
+        font-family: "Malgun Gothic", "Noto Sans KR", sans-serif;
       }
       .layer {
         position: absolute;
@@ -226,6 +238,20 @@
     scheduleOverlayPosition();
   }
 
+  function clearLiveCaptionTimer() {
+    clearTimeout(liveCaptionClearTimer);
+    liveCaptionClearTimer = null;
+  }
+
+  function scheduleLiveCaptionClear(delayMs) {
+    clearLiveCaptionTimer();
+    liveCaptionClearTimer = setTimeout(() => {
+      liveCaptionClearTimer = null;
+      provisionalCue = null;
+      setCaption("");
+    }, delayMs);
+  }
+
   function limitLines(text, maxLines) {
     const clean = String(text || "").replace(/\s+/g, " ").trim();
     if (!clean) {
@@ -254,18 +280,30 @@
       stableCues = captionUtils.sortAndDedupeCues([...stableCues, ...incomingStable]).slice(-500);
     }
     provisionalCue = event.provisionalCue ? captionUtils.normalizeCue(event.provisionalCue) : null;
-    const latest = provisionalCue || stableCues.at(-1) || null;
+    if (event.language) {
+      host.lang = normalizeOverlayLanguage(event.language);
+    }
+    const latest = captionUtils.selectLiveCaptionCue(incomingStable, provisionalCue);
     setCaption(latest?.text || "", Boolean(provisionalCue));
-    setStatus(event.language ? `即時字幕 · ${event.language}` : "即時字幕");
+    if (latest) {
+      scheduleLiveCaptionClear(captionUtils.LIVE_CAPTION_STALE_MS);
+    } else {
+      clearLiveCaptionTimer();
+    }
+    setStatus(event.language
+      ? msg("liveCaptionLanguage", [String(event.language)])
+      : msg("liveCaption"));
   }
 
   async function displayTrack(track) {
     const captionUtils = await utils();
+    clearLiveCaptionTimer();
     trackCues = captionUtils.sortAndDedupeCues(track.cues || []);
     stableCues = [];
     provisionalCue = null;
     captionsStarted = false;
     ensureOverlay();
+    host.lang = normalizeOverlayLanguage(track.language);
     setStatus("");
     bindMediaEvents();
     startTrackRenderer();
@@ -283,7 +321,7 @@
     }
     const media = getPrimaryMedia();
     if (!media) {
-      setStatus("找不到可同步的播放器");
+      setStatus(msg("playerNotFound"));
       return;
     }
     const captionUtils = await utils();
@@ -295,6 +333,7 @@
     stableCues = [];
     trackCues = [];
     provisionalCue = null;
+    clearLiveCaptionTimer();
     clearInterval(renderTimer);
     renderTimer = null;
     setCaption("");
@@ -309,6 +348,15 @@
       captionBox = null;
       statusBox = null;
     }
+  }
+
+  function normalizeOverlayLanguage(value) {
+    const language = String(value || "").toLowerCase();
+    if (language.startsWith("zh")) return "zh-TW";
+    if (language.startsWith("ja")) return "ja";
+    if (language.startsWith("ko")) return "ko";
+    if (language.startsWith("en")) return "en";
+    return chrome.i18n.getMessage("@@ui_locale").replaceAll("_", "-") || "en";
   }
 
   function getPrimaryMedia() {

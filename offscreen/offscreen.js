@@ -24,8 +24,8 @@ async function handleMessage(message) {
     return { started: true, ...capture };
   }
   if (message.action === "stopAudioCapture") {
-    await stopAudioCapture();
-    return { stopped: true };
+    const stopped = await stopAudioCapture(message.sessionId);
+    return { stopped };
   }
   throw new Error(`Unknown offscreen action: ${message.action}`);
 }
@@ -144,7 +144,10 @@ function reportCaptureError(error) {
   }).catch(() => {});
 }
 
-async function stopAudioCapture() {
+async function stopAudioCapture(expectedSessionId = "") {
+  if (expectedSessionId && session && session.sessionId !== expectedSessionId) {
+    return false;
+  }
   session = null;
   if (mediaStream) {
     for (const track of mediaStream.getTracks()) {
@@ -165,4 +168,5 @@ async function stopAudioCapture() {
   sourceNode = null;
   workletNode = null;
   chunkSendFailed = false;
+  return true;
 }

@@ -1,5 +1,8 @@
+importScripts("i18n.js");
+
 const MESSAGE_TYPE = "any-subtitle";
 const HOST_NAME = "com.dowen.any_subtitle";
+const { msg } = globalThis.AnySubtitleI18n;
 const SETTINGS_KEY = "anySubtitleSettings";
 const DEFAULT_SETTINGS = {
   language: "auto",
@@ -9,6 +12,8 @@ const DEFAULT_SETTINGS = {
 let nativePort = null;
 let pending = new Map();
 let active = {
+  operationId: "",
+  phase: "",
   tabId: 0,
   sessionId: "",
   jobId: "",
@@ -77,7 +82,7 @@ async function handleMessage(message, sender) {
     case "finishCapture":
       return finishCapture(message);
     case "stopCurrent":
-      await stopAll(message.jobId, message.sessionId);
+      await stopAll();
       return {};
     case "reloadTrack":
       return reloadTrack(message);
@@ -97,114 +102,127 @@ async function handleMessage(message, sender) {
 }
 
 async function startLive(options) {
-  await stopAll();
-  const tab = await requireActiveTab(options.targetTabId);
-  await ensureContent(tab.id);
-  await ensureOffscreen();
-  await sendContent(tab.id, "setOverlayStatus", { status: "正在取得分頁音訊…" });
-  const streamId = await getTabStreamId(tab.id);
-  const sessionId = crypto.randomUUID();
-  active = {
-    tabId: tab.id,
-    sessionId,
-    jobId: "",
-    mode: "live",
-    audioChunkCount: 0,
-    captureState: "starting",
-    lastRequest: options,
-    fallbackAvailable: false,
-    authenticationRequired: false
-  };
-  await sendNative({
-    action: "startLiveSession",
-    sessionId,
-    tabId: tab.id,
-    url: tab.url || "",
-    title: tab.title || "",
-    language: normalizeLanguage(options.language),
-    traditionalChinese: options.traditionalChinese !== false
-  }, 30000);
-  scheduleAudioCaptureCheck(sessionId, tab.id);
+  const operation = beginOperation("live", options);
+  const resources = { tabId: Number(options.targetTabId) || 0, sessionId: "", jobId: "" };
   try {
+    await stopSnapshot(operation.previous);
+    requireActiveOperation(operation.id);
+    const tab = await requireActiveTab(options.targetTabId);
+    resources.tabId = tab.id;
+    updateActiveOperation(operation.id, { tabId: tab.id });
+    await ensureContent(tab.id);
+    requireActiveOperation(operation.id);
+    await ensureOffscreen();
+    requireActiveOperation(operation.id);
+    await sendContent(tab.id, "setOverlayStatus", { status: msg("gettingTabAudio") });
+    requireActiveOperation(operation.id);
+    const streamId = await getTabStreamId(tab.id);
+    requireActiveOperation(operation.id);
+    const sessionId = crypto.randomUUID();
+    resources.sessionId = sessionId;
+    updateActiveOperation(operation.id, { sessionId });
+    await sendNative({
+      action: "startLiveSession",
+      sessionId,
+      tabId: tab.id,
+      url: tab.url || "",
+      title: tab.title || "",
+      language: normalizeLanguage(options.language),
+      traditionalChinese: options.traditionalChinese !== false
+    }, 30000);
+    requireActiveOperation(operation.id);
+    scheduleAudioCaptureCheck(sessionId, tab.id);
     const capture = await sendOffscreen("startAudioCapture", {
       streamId,
       sessionId,
       tabId: tab.id,
       mode: "live"
     });
-    active.captureState = capture.audioContextState || "started";
+    requireActiveOperation(operation.id);
+    updateActiveOperation(operation.id, {
+      captureState: capture.audioContextState || "started",
+      phase: "running"
+    });
+    await sendContent(tab.id, "setOverlayStatus", { status: msg("startingLive") });
+    requireActiveOperation(operation.id);
+    return { sessionId };
   } catch (error) {
-    await sendNative({ action: "stopSession", sessionId }, 10000).catch(() => {});
-    resetActive();
-    throw error;
+    return handleOperationFailure(operation.id, resources, error);
   }
-  await sendContent(tab.id, "setOverlayStatus", { status: "正在啟動即時字幕…" });
-  broadcastState();
-  return { sessionId };
 }
 
 async function startAccurate(options) {
-  await stopAll();
-  const tab = await requireActiveTab(options.targetTabId);
-  await ensureContent(tab.id);
-  const cached = await sendNative({
-    action: "loadTrack",
-    url: tab.url || "",
-    traditionalChinese: options.traditionalChinese !== false
-  }, 20000);
-  if (cached.track) {
-    await sendContent(tab.id, "displayTrack", { track: cached.track });
-    return { track: cached.track, cached: true };
-  }
-  const media = await sendContent(tab.id, "getMediaInfo");
-  const mediaInfo = media.media || {};
-  const existingTrack = chooseExistingTrack(mediaInfo.tracks, options.language);
-  if (existingTrack) {
-    const track = {
+  const operation = beginOperation("accurate", options);
+  const resources = { tabId: Number(options.targetTabId) || 0, sessionId: "", jobId: "" };
+  try {
+    await stopSnapshot(operation.previous);
+    requireActiveOperation(operation.id);
+    const tab = await requireActiveTab(options.targetTabId);
+    resources.tabId = tab.id;
+    updateActiveOperation(operation.id, { tabId: tab.id });
+    await ensureContent(tab.id);
+    requireActiveOperation(operation.id);
+    const cached = await sendNative({
+      action: "loadTrack",
+      url: tab.url || "",
+      traditionalChinese: options.traditionalChinese !== false
+    }, 20000);
+    requireActiveOperation(operation.id);
+    if (cached.track) {
+      await sendContent(tab.id, "displayTrack", { track: cached.track });
+      requireActiveOperation(operation.id);
+      completeOperation(operation.id);
+      return { track: cached.track, cached: true };
+    }
+    const media = await sendContent(tab.id, "getMediaInfo");
+    requireActiveOperation(operation.id);
+    const mediaInfo = media.media || {};
+    const existingTrack = chooseExistingTrack(mediaInfo.tracks, options.language);
+    if (existingTrack) {
+      const track = {
+        url: tab.url || mediaInfo.url || "",
+        title: mediaInfo.title || tab.title || "",
+        durationMs: mediaInfo.durationMs || 0,
+        language: existingTrack.language || normalizeLanguage(options.language),
+        source: "page-track",
+        model: "",
+        traditionalChinese: options.traditionalChinese !== false,
+        generatedAt: new Date().toISOString(),
+        cues: existingTrack.cues || []
+      };
+      const imported = await sendNative({ action: "importTrack", track }, 20000);
+      requireActiveOperation(operation.id);
+      const normalizedTrack = imported.track || track;
+      await sendContent(tab.id, "displayTrack", { track: normalizedTrack });
+      requireActiveOperation(operation.id);
+      completeOperation(operation.id);
+      return { track: normalizedTrack };
+    }
+
+    let cookies = [];
+    if (options.requestCookies) {
+      cookies = await requestAndCollectCookies(tab.url);
+      requireActiveOperation(operation.id);
+    }
+    const request = {
       url: tab.url || mediaInfo.url || "",
       title: mediaInfo.title || tab.title || "",
+      currentSrc: mediaInfo.currentSrc || "",
       durationMs: mediaInfo.durationMs || 0,
-      language: existingTrack.language || normalizeLanguage(options.language),
-      source: "page-track",
-      model: "",
+      language: normalizeLanguage(options.language),
       traditionalChinese: options.traditionalChinese !== false,
-      generatedAt: new Date().toISOString(),
-      cues: existingTrack.cues || []
+      cookies
     };
-    const imported = await sendNative({ action: "importTrack", track }, 20000);
-    const normalizedTrack = imported.track || track;
-    await sendContent(tab.id, "displayTrack", { track: normalizedTrack });
-    return { track: normalizedTrack };
+    const response = await sendNative({ action: "startAccurateJob", request }, 30000);
+    resources.jobId = response.jobId || "";
+    requireActiveOperation(operation.id);
+    updateActiveOperation(operation.id, { jobId: resources.jobId, phase: "running" });
+    await sendContent(tab.id, "setOverlayStatus", { status: msg("generatingAccurate") });
+    requireActiveOperation(operation.id);
+    return { jobId: resources.jobId };
+  } catch (error) {
+    return handleOperationFailure(operation.id, resources, error);
   }
-
-  let cookies = [];
-  if (options.requestCookies) {
-    cookies = await requestAndCollectCookies(tab.url);
-  }
-  const request = {
-    url: tab.url || mediaInfo.url || "",
-    title: mediaInfo.title || tab.title || "",
-    currentSrc: mediaInfo.currentSrc || "",
-    durationMs: mediaInfo.durationMs || 0,
-    language: normalizeLanguage(options.language),
-    traditionalChinese: options.traditionalChinese !== false,
-    cookies
-  };
-  const response = await sendNative({ action: "startAccurateJob", request }, 30000);
-  active = {
-    tabId: tab.id,
-    sessionId: "",
-    jobId: response.jobId || "",
-    mode: "accurate",
-    audioChunkCount: 0,
-    captureState: "",
-    lastRequest: options,
-    fallbackAvailable: false,
-    authenticationRequired: false
-  };
-  await sendContent(tab.id, "setOverlayStatus", { status: "正在產生精準字幕…" });
-  broadcastState();
-  return { jobId: active.jobId };
 }
 
 async function getAccurateCache(options = {}) {
@@ -217,15 +235,28 @@ async function getAccurateCache(options = {}) {
 }
 
 async function startCapture(options) {
-  await stopAll();
-  const tab = await requireActiveTab(options.targetTabId);
-  await ensureContent(tab.id);
-  await ensureOffscreen();
-  const sessionId = crypto.randomUUID();
-  const media = await sendContent(tab.id, "getMediaInfo");
-  await sendContent(tab.id, "setOverlayStatus", { status: "正在取得分頁音訊…" });
-  const streamId = await getTabStreamId(tab.id);
-  await sendNative({
+  const operation = beginOperation("capture", options);
+  const resources = { tabId: Number(options.targetTabId) || 0, sessionId: "", jobId: "" };
+  try {
+    await stopSnapshot(operation.previous);
+    requireActiveOperation(operation.id);
+    const tab = await requireActiveTab(options.targetTabId);
+    resources.tabId = tab.id;
+    updateActiveOperation(operation.id, { tabId: tab.id });
+    await ensureContent(tab.id);
+    requireActiveOperation(operation.id);
+    await ensureOffscreen();
+    requireActiveOperation(operation.id);
+    const sessionId = crypto.randomUUID();
+    resources.sessionId = sessionId;
+    updateActiveOperation(operation.id, { sessionId });
+    const media = await sendContent(tab.id, "getMediaInfo");
+    requireActiveOperation(operation.id);
+    await sendContent(tab.id, "setOverlayStatus", { status: msg("gettingTabAudio") });
+    requireActiveOperation(operation.id);
+    const streamId = await getTabStreamId(tab.id);
+    requireActiveOperation(operation.id);
+    await sendNative({
       action: "startCaptureSession",
       sessionId,
       request: {
@@ -236,49 +267,54 @@ async function startCapture(options) {
         traditionalChinese: options.traditionalChinese !== false
       }
     }, 20000);
-  let captureInfo;
-  try {
-    captureInfo = await sendOffscreen("startAudioCapture", {
+    requireActiveOperation(operation.id);
+    const captureInfo = await sendOffscreen("startAudioCapture", {
       streamId,
       sessionId,
       tabId: tab.id,
       mode: "capture"
     });
+    requireActiveOperation(operation.id);
+    updateActiveOperation(operation.id, {
+      captureState: captureInfo?.audioContextState || "started",
+      fallbackAvailable: true,
+      phase: "running"
+    });
+    await sendContent(tab.id, "setOverlayStatus", { status: msg("fullPlaybackRecording") });
+    requireActiveOperation(operation.id);
+    scheduleAudioCaptureCheck(sessionId, tab.id);
+    return { sessionId };
   } catch (error) {
-    await sendNative({ action: "stopSession", sessionId }, 10000).catch(() => {});
-    throw error;
+    return handleOperationFailure(operation.id, resources, error);
   }
-  active = {
-    tabId: tab.id,
-    sessionId,
-    jobId: "",
-    mode: "capture",
-    audioChunkCount: 0,
-    captureState: captureInfo?.audioContextState || "started",
-    lastRequest: options,
-    fallbackAvailable: true,
-    authenticationRequired: false
-  };
-  await sendContent(tab.id, "setOverlayStatus", { status: "完整播放錄音中" });
-  scheduleAudioCaptureCheck(sessionId, tab.id);
-  broadcastState();
-  return { sessionId };
 }
 
 async function finishCapture(options) {
   if (!active.sessionId || active.mode !== "capture") {
-    throw new Error("目前沒有完整播放錄音工作。");
+    throw new Error(msg("noCaptureSession"));
   }
-  await sendOffscreen("stopAudioCapture", {});
+  const operationId = active.operationId;
+  const sessionId = active.sessionId;
+  await sendOffscreen("stopAudioCapture", { sessionId });
+  if (!isActiveOperation(operationId)) {
+    return { cancelled: true };
+  }
   const response = await sendNative({
     action: "finalizeCapture",
-    sessionId: active.sessionId,
+    sessionId,
     language: normalizeLanguage(options.language),
     traditionalChinese: options.traditionalChinese !== false
   }, 30000);
+  if (!isActiveOperation(operationId)) {
+    if (response.jobId) {
+      await sendNative({ action: "cancelJob", jobId: response.jobId }, 15000).catch(() => {});
+    }
+    return { cancelled: true };
+  }
   active.sessionId = "";
   active.jobId = response.jobId || "";
   active.mode = "accurate";
+  active.phase = "running";
   broadcastState();
   return { jobId: active.jobId };
 }
@@ -312,8 +348,8 @@ async function forwardAudioChunk(message) {
     };
     sendContent(active.tabId, "setOverlayStatus", {
       status: active.mode === "capture"
-        ? "完整播放錄音中 · 已收到分頁音訊"
-        : "即時字幕音訊擷取中，等待語音…"
+        ? msg("captureAudioReceived")
+        : msg("liveAudioCaptureWaiting")
     }).catch(() => {});
     broadcastNativeEvent(event);
     broadcastState();
@@ -347,10 +383,10 @@ async function handleAudioCaptureError(message) {
   const event = {
     event: "audioCaptureError",
     sessionId: active.sessionId,
-    error: String(message.error || "分頁音訊擷取失敗")
+    error: String(message.error || msg("tabAudioCaptureFailed"))
   };
   sendContent(active.tabId, "setOverlayStatus", {
-    status: `音訊擷取失敗：${event.error}`
+    status: msg("audioCaptureFailed", [event.error])
   }).catch(() => {});
   broadcastNativeEvent(event);
   broadcastState();
@@ -380,19 +416,82 @@ async function handleCaptureEnded(message) {
   return {};
 }
 
-async function stopAll(jobId = active.jobId, sessionId = active.sessionId) {
-  if (sessionId) {
-    await sendOffscreen("stopAudioCapture", {}).catch(() => {});
-    await sendNative({ action: "stopSession", sessionId }, 15000).catch(() => {});
-  }
-  if (jobId) {
-    await sendNative({ action: "cancelJob", jobId }, 15000).catch(() => {});
-  }
-  if (active.tabId) {
-    await sendContent(active.tabId, "clearOverlay", { remove: false }).catch(() => {});
-  }
+async function stopAll() {
+  const snapshot = active;
   resetActive();
   broadcastState();
+  await stopSnapshot(snapshot);
+}
+
+async function stopSnapshot(snapshot, { clearOverlay = true } = {}) {
+  if (snapshot.sessionId) {
+    await sendOffscreen("stopAudioCapture", { sessionId: snapshot.sessionId }).catch(() => {});
+    await sendNative({ action: "stopSession", sessionId: snapshot.sessionId }, 15000).catch(() => {});
+  }
+  if (snapshot.jobId) {
+    await sendNative({ action: "cancelJob", jobId: snapshot.jobId }, 15000).catch(() => {});
+  }
+  if (clearOverlay && snapshot.tabId) {
+    await sendContent(snapshot.tabId, "clearOverlay", { remove: false }).catch(() => {});
+  }
+}
+
+function beginOperation(mode, options) {
+  const previous = active;
+  const id = crypto.randomUUID();
+  active = {
+    operationId: id,
+    phase: "starting",
+    tabId: Number(options.targetTabId) || 0,
+    sessionId: "",
+    jobId: "",
+    mode,
+    audioChunkCount: 0,
+    captureState: "starting",
+    lastRequest: options,
+    fallbackAvailable: false,
+    authenticationRequired: false
+  };
+  broadcastState();
+  return { id, previous };
+}
+
+function isActiveOperation(operationId) {
+  return Boolean(operationId && active.operationId === operationId);
+}
+
+function requireActiveOperation(operationId) {
+  if (!isActiveOperation(operationId)) {
+    throw new OperationCancelled();
+  }
+}
+
+function updateActiveOperation(operationId, changes) {
+  requireActiveOperation(operationId);
+  Object.assign(active, changes);
+  broadcastState();
+}
+
+function completeOperation(operationId) {
+  requireActiveOperation(operationId);
+  resetActive();
+  broadcastState();
+}
+
+async function handleOperationFailure(operationId, resources, error) {
+  const cancelled = error instanceof OperationCancelled || !isActiveOperation(operationId);
+  if (isActiveOperation(operationId)) {
+    const snapshot = active;
+    resetActive();
+    broadcastState();
+    await stopSnapshot(snapshot);
+  } else {
+    await stopSnapshot(resources, { clearOverlay: false });
+  }
+  if (cancelled) {
+    return { cancelled: true };
+  }
+  throw error;
 }
 
 async function ensureContent(tabId) {
@@ -406,7 +505,7 @@ async function ensureContent(tabId) {
   }
   await chrome.scripting.executeScript({
     target: { tabId },
-    files: ["src/content.js"]
+    files: ["src/i18n.js", "src/content.js"]
   });
 }
 
@@ -435,7 +534,7 @@ function getTabStreamId(tabId) {
       }
       settled = true;
       reject(new Error(
-        "取得分頁音訊逾時。請關閉 popup，重新點擊工具列上的 Any Subtitle 後再試。"
+        msg("streamTimeout")
       ));
     }, 8000);
     chrome.tabCapture.getMediaStreamId({ targetTabId: tabId }, (streamId) => {
@@ -447,7 +546,7 @@ function getTabStreamId(tabId) {
       const error = chrome.runtime.lastError?.message;
       if (error || !streamId) {
         reject(new Error(
-          error || "無法取得目前分頁的音訊串流。請重新點擊工具列圖示後再試。"
+          error || msg("streamUnavailable")
         ));
         return;
       }
@@ -468,7 +567,7 @@ function scheduleAudioCaptureCheck(sessionId, tabId) {
     active.captureState = "timeout";
     const event = { event: "audioCaptureTimeout", sessionId };
     sendContent(tabId, "setOverlayStatus", {
-      status: "未收到分頁音訊，請確認影片正在播放且有聲音"
+      status: msg("tabAudioTimeout")
     }).catch(() => {});
     broadcastNativeEvent(event);
     broadcastState();
@@ -486,7 +585,7 @@ async function sendOffscreen(action, payload) {
     }),
     new Promise((_, reject) => {
       timeout = setTimeout(() => reject(new Error(
-        "Offscreen 音訊初始化逾時"
+        msg("offscreenTimeout")
       )), 10000);
     })
   ]).finally(() => clearTimeout(timeout));
@@ -512,7 +611,7 @@ async function requireActiveTab(preferredTabId = 0) {
   const tab = await resolveTargetTab(preferredTabId);
   if (!tab) {
     throw new Error(
-      "目前分頁不是可存取的 HTTP(S) 影片頁面。請切回影片分頁後重新開啟 Any Subtitle。"
+      msg("inaccessibleTab")
     );
   }
   return tab;
@@ -567,7 +666,7 @@ async function requestAndCollectCookies(urlValue) {
     origins: [originPattern]
   });
   if (!granted) {
-    throw new Error("未取得目前網站的 cookies 權限。");
+    throw new Error(msg("cookiesPermissionDenied"));
   }
   const cookies = await chrome.cookies.getAll({ domain: url.hostname });
   return cookies.map((cookie) => ({
@@ -678,22 +777,34 @@ function handleNativeMessage(message) {
   if (!message?.event) {
     return;
   }
+  if (message.jobId && active.operationId && active.mode === "accurate" && !active.jobId) {
+    active.jobId = message.jobId;
+    active.phase = "running";
+  }
   if (message.event === "captionUpdate" && active.tabId) {
     sendContent(active.tabId, "captionUpdate", { event: message }).catch(() => {});
   }
   if (message.event === "trackReady" && active.tabId && message.track) {
     sendContent(active.tabId, "displayTrack", { track: message.track }).catch(() => {});
-    active.jobId = "";
+    if (!message.jobId || message.jobId === active.jobId) {
+      active.jobId = "";
+      active.operationId = "";
+      active.phase = "";
+    }
   }
   if (message.event === "error") {
     active.fallbackAvailable = Boolean(message.fallbackAvailable);
     active.authenticationRequired = Boolean(message.authenticationRequired);
     if (message.jobId === active.jobId) {
       active.jobId = "";
+      active.operationId = "";
+      active.phase = "";
     }
   }
   if (message.event === "sessionStopped" && message.sessionId === active.sessionId) {
     active.sessionId = "";
+    active.operationId = "";
+    active.phase = "";
   }
   broadcastNativeEvent(message);
   broadcastState();
@@ -711,6 +822,8 @@ function handleNativeDisconnect() {
 
 function resetActive() {
   active = {
+    operationId: "",
+    phase: "",
     tabId: 0,
     sessionId: "",
     jobId: "",
@@ -725,6 +838,8 @@ function resetActive() {
 
 function publicState() {
   return {
+    busy: Boolean(active.operationId || active.sessionId || active.jobId),
+    phase: active.phase,
     tabId: active.tabId,
     sessionId: active.sessionId,
     jobId: active.jobId,
@@ -742,4 +857,11 @@ function broadcastNativeEvent(event) {
 
 function broadcastState() {
   chrome.runtime.sendMessage({ type: MESSAGE_TYPE, action: "stateChanged", state: publicState() }).catch(() => {});
+}
+
+class OperationCancelled extends Error {
+  constructor() {
+    super("Operation cancelled");
+    this.name = "OperationCancelled";
+  }
 }

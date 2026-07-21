@@ -5,11 +5,20 @@ values once more before submitting the item for review.
 
 ## Package
 
-- Version: `0.3.0`
+- Version: `0.3.2`
 - Chrome Web Store extension ID: `eafleifhjcogliglgohddcgfbpeaioni`
 - ZIP: `dist/any-subtitle.zip`
 - Target: Unlisted beta, Windows, Chrome/Edge/Vivaldi 116+
 - Companion: `AnySubtitleCoreSetup.exe`
+- Package locales: English (`en`, default), Taiwan Traditional Chinese (`zh_TW`), Japanese (`ja`)
+
+## Localized listing assets
+
+- English screenshot: `store-assets/localized/screenshot-en-1280x800.png`
+- Taiwan Traditional Chinese screenshot: `store-assets/localized/screenshot-zh_TW-1280x800.png`
+- Japanese screenshot: `store-assets/localized/screenshot-ja-1280x800.png`
+- Global small promo tile: `store-assets/promo-small-global-440x280.png`
+- Store icon: `icons/icon128.png`
 
 ## Single purpose
 
@@ -126,9 +135,9 @@ the developer does not receive the processed data.
 
 ## Public URLs
 
-- Homepage: `https://www.dowen.idv.tw/any_subtitle/`
-- Privacy policy: `https://www.dowen.idv.tw/any_subtitle/privacy.html`
-- Support: `https://www.dowen.idv.tw/any_subtitle/support.html`
+- Homepage: `https://tokenyet.github.io/any_subtitle/`
+- Privacy policy: `https://tokenyet.github.io/any_subtitle/privacy.html`
+- Support: `https://tokenyet.github.io/any_subtitle/support.html`
 
 ## Reviewer instructions
 
@@ -141,6 +150,10 @@ the developer does not receive the processed data.
 7. Choose **Generate accurate captions** to test existing page tracks or local transcription.
 8. Browser internal pages, DRM media, Picture-in-Picture windows and canvas-only players are outside the supported scope.
 
+### Paste-ready reviewer text (under 500 characters)
+
+Windows 10/11 and an NVIDIA GTX/RTX GPU are required. Install the Local Core from https://github.com/Tokenyet/any_subtitle/releases/latest/download/AnySubtitleCoreSetup.exe (downloads about 3 GB). Open a normal HTTP(S) page with an HTML5 video and start playback. Click Any Subtitle, then test Start live captions. Stop it and test Generate accurate captions. No login is required. DRM, Picture-in-Picture, and canvas-only players are unsupported.
+
 The Local Core installer must be compiled with the final store extension ID or
 Chrome will reject the Native Messaging connection.
 
@@ -151,8 +164,9 @@ Chrome will reject the Native Messaging connection.
 - [x] Publish the public Local Core release asset and verify the stable URL.
 - [x] Publish and visually verify homepage, privacy and support URLs.
 - [x] Replace the pending markers above with live verification results.
-- [x] Upload the extension ZIP.
+- [ ] Upload the localized v0.3.2 extension ZIP.
 - [ ] Upload the store assets.
+- [ ] Add English, Taiwan Traditional Chinese and Japanese listing descriptions and screenshots.
 - [ ] Paste the permission and privacy answers above.
 - [ ] Set distribution to Unlisted for the first review.
 - [ ] Test the store-installed extension against the published installer before submitting for review.

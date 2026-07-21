@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-07-17T13:02:38.985Z",
+  "outputs": [
+    {
+      "locale": "en",
+      "screenshot": "D:\\Project\\any_subtitle\\store-assets\\localized\\screenshot-en-1280x800.png",
+      "promoSmall": "D:\\Project\\any_subtitle\\store-assets\\localized\\promo-small-en-440x280.png",
+      "title": "Any Subtitle",
+      "summary": "Generate live or accurate captions for the current tab locally with an NVIDIA GPU."
+    },
+    {
+      "locale": "zh_TW",
+      "screenshot": "D:\\Project\\any_subtitle\\store-assets\\localized\\screenshot-zh_TW-1280x800.png",
+      "promoSmall": "D:\\Project\\any_subtitle\\store-assets\\localized\\promo-small-zh_TW-440x280.png",
+      "title": "Any Subtitle",
+      "summary": "使用本機 NVIDIA GPU，為目前分頁產生即時或精準字幕；影音不送往雲端辨識。"
+    },
+    {
+      "locale": "ja",
+      "screenshot": "D:\\Project\\any_subtitle\\store-assets\\localized\\screenshot-ja-1280x800.png",
+      "promoSmall": "D:\\Project\\any_subtitle\\store-assets\\localized\\promo-small-ja-440x280.png",
+      "title": "Any Subtitle",
+      "summary": "ローカルの NVIDIA GPU で、現在のタブにライブ字幕または高精度字幕を生成します。"
+    }
+  ]
+}

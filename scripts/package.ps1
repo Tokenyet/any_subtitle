@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $Destination = Join-Path $Root $Output
 $UnpackedDestination = Join-Path $Root $UnpackedOutput
-$PackageItems = @("manifest.json", "src", "offscreen", "popup", "onboarding", "icons")
+$PackageItems = @("manifest.json", "_locales", "src", "offscreen", "popup", "onboarding", "icons")
 
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Destination) | Out-Null
 if (Test-Path -LiteralPath $Destination) {

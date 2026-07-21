@@ -29,6 +29,17 @@ export function sortAndDedupeCues(cues) {
   return result.sort((left, right) => left.startMs - right.startMs || left.endMs - right.endMs);
 }
 
+export const LIVE_CAPTION_STALE_MS = 4000;
+
+export function selectLiveCaptionCue(stableCues, provisionalCue) {
+  if (provisionalCue) {
+    const cue = normalizeCue(provisionalCue);
+    return cue.text ? cue : null;
+  }
+  const incomingStable = sortAndDedupeCues(stableCues);
+  return incomingStable.at(-1) || null;
+}
+
 export function findCueAt(cues, timeMs) {
   const list = Array.isArray(cues) ? cues : [];
   const target = Math.max(0, Number(timeMs) || 0);

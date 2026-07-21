@@ -1,14 +1,15 @@
 const MESSAGE_TYPE = "any-subtitle";
 const CORE_DOWNLOAD_URL = "https://github.com/Tokenyet/any_subtitle/releases/latest/download/AnySubtitleCoreSetup.exe";
+const { localizeDocument, msg } = globalThis.AnySubtitleI18n;
 const TOOL_LABELS = {
   "ffmpeg": "FFmpeg",
   "ffprobe": "FFprobe",
   "yt-dlp": "yt-dlp",
-  "whisper-server": "Whisper 即時核心",
-  "whisper-cli": "Whisper 精準核心",
-  "small-model": "即時字幕模型",
-  "accurate-model": "精準字幕模型",
-  "vad-model": "語音偵測模型"
+  "whisper-server": msg("toolWhisperLive"),
+  "whisper-cli": msg("toolWhisperAccurate"),
+  "small-model": msg("toolSmallModel"),
+  "accurate-model": msg("toolAccurateModel"),
+  "vad-model": msg("toolVadModel")
 };
 
 const elements = {
@@ -21,6 +22,7 @@ const elements = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+  localizeDocument();
   elements.version.textContent = `Any Subtitle ${chrome.runtime.getManifest().version}`;
   elements.download.addEventListener("click", downloadCore);
   elements.recheck.addEventListener("click", checkCore);
@@ -32,12 +34,12 @@ async function downloadCore() {
 }
 
 async function checkCore() {
-  render("checking", "正在檢查本機核心…", "請稍候。");
+  render("checking", msg("checkingCore"), msg("pleaseWait"));
   try {
     const response = await send("ping");
     const status = response.response || {};
     if (status.liveReady && status.accurateReady) {
-      render("ready", "本機核心已就緒", "可以關閉這個分頁，回到影片頁點擊 Any Subtitle。 ");
+      render("ready", msg("coreReadyTitle"), msg("coreReadyDetail"));
       return;
     }
     const missing = Object.entries(TOOL_LABELS)
@@ -45,11 +47,13 @@ async function checkCore() {
       .map(([, label]) => label);
     render(
       "error",
-      "本機核心尚未完成",
-      missing.length ? `尚缺少：${missing.join("、")}。請重新執行安裝器。` : "請重新執行安裝器。"
+      msg("coreIncompleteTitle"),
+      missing.length
+        ? msg("missingInstallerTools", [formatList(missing)])
+        : msg("rerunInstaller")
     );
   } catch {
-    render("error", "尚未安裝本機核心", "下載並執行 Windows 安裝器，完成後再按「重新檢查」。");
+    render("error", msg("coreNotInstalledTitle"), msg("coreNotInstalledDetail"));
   }
 }
 
@@ -59,12 +63,17 @@ function render(state, title, detail) {
   elements.detail.textContent = detail;
 }
 
+function formatList(items) {
+  const locale = chrome.i18n.getMessage("@@ui_locale").replaceAll("_", "-") || "en";
+  return new Intl.ListFormat(locale, { style: "short", type: "conjunction" }).format(items);
+}
+
 function send(action) {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage({ type: MESSAGE_TYPE, action }, (response) => {
       const error = chrome.runtime.lastError;
       if (error || !response?.ok) {
-        reject(new Error(error?.message || response?.error || "無法連線本機核心"));
+        reject(new Error(error?.message || response?.error || msg("coreConnectionFailed")));
         return;
       }
       resolve(response);
